@@ -1,0 +1,41 @@
+{
+    "name": "tippingmedia/locations",
+    "description": "Places on the globe.",
+    "type": "craft-plugin",
+    "version": "1.0.0-dev",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "locations"
+    ],
+    "support": {
+        "docs": "https://github.com/tippingmedia/locations/blob/master/README.md",
+        "issues": "https://github.com/tippingmedia/locations/issues"
+    },
+    "license": "MIT",
+    "authors": [{
+        "name": "Tipping Media LLC",
+        "homepage": "https://tippingmedia.com"
+    }],
+    "require": {
+        "craftcms/cms": "^3.0.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "tippingmedia\\locations\\": "src/"
+        }
+    },
+    "extra": {
+        "name": "Locations",
+        "handle": "locations",
+        "hasCpSettings": true,
+        "hasCpSection": false,
+        "changelogUrl": "https://raw.githubusercontent.com/tippingmedia/locations/master/releases.json",
+        "components": {
+            "locations": "tippingmedia\\locations\\services\\Locations"
+        },
+        "class": "tippingmedia\\locations\\Locations"
+    }
+}

@@ -1,0 +1,11 @@
+{% extends "_layouts/elementindex" %}
+
+{% set title = "Locations"|t %}
+{% set elementType = 'tippingmedia\\locations\\elements\\Location' %}
+
+
+{% block actionButton %}
+	<div class="buttons">
+		<a class="btn submit add icon" href="{{ url('location/new') }}">{{ "New Location"|t }}</a>
+	</div>
+{% endblock %}
