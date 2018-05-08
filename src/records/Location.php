@@ -50,7 +50,7 @@ class Location extends ActiveRecord
      */
     public static function tableName()
     {
-        return '{{%locations_locations}}';
+        return '{{%locations_entries}}';
     }
 
     /**

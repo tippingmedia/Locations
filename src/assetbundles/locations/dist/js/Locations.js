@@ -2,7 +2,7 @@
  * Locations Class
  */
 
-export class Locations {
+class Locations {
 
     constructor(options) {
         const $this = this;

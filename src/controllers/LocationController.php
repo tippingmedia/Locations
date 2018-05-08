@@ -11,23 +11,26 @@
 namespace tippingmedia\locations\controllers;
 
 use tippingmedia\locations\Locations;
+use tippingmedia\locations\controllers\BaseLocationController;
 use tippingmedia\locations\models\Location;
-use tippingmedia\locations\assetbundles\LocationsAsset;
+use tippingmedia\locations\assetbundles\locations\LocationsAsset;
+use tippingmedia\locations\helpers\CountriesHelper;
+use tippingmedia\locations\elements\Location as LocationElement;
 
 use Craft;
 use craft\web\Controller;
+use craft\helpers\UrlHelper;
+use yii\web\Response;
 
 
-class LocationController extends Controller
+class LocationController extends BaseLocationController
 {
 
     /**
 	 * Group index
 	 */
-	public function actionLocationIndex() {
-		$variables['locations'] = getAllLocations();
-
-		$this->renderTemplate('_index', $variables);
+	public function actionLocationIndex(array $variables = []):Response {
+		return $this->renderTemplate('locations/_index');
 	}
 
 	/**
@@ -37,58 +40,70 @@ class LocationController extends Controller
 	 * @throws HttpException
 	 * @throws Exception
 	 */
-	public function actionEditLocation(array $variables = []): array {
+	public function actionEditLocation(int $locationId = null, string $siteHandle = null, LocationElement $location = null): Response
+	{
 
-		// Make sure they have permission to edit this entry
-		$locationMOD = new Location();
-		if (array_key_exists('locationId',$variables)) {
-			$locationMOD->setAttribute('id',$variables['locationId']);
+		$variables = [
+			'locationId' => $locationId,
+			'location' => $location
+		];
+		
+		if ($siteHandle !== null) {
+            $variables['site'] = Craft::$app->getSites()->getSiteByHandle($siteHandle);
+
+            if (!$variables['site']) {
+                throw new NotFoundHttpException('Invalid site handle: '.$siteHandle);
+            }
+        }
+
+		$this->_prepEditEntryVariables($variables);
+
+		/** @var Site $site */
+        //$site = $variables['site'];
+        /** @var LocationElement $location */
+        $location = $variables['location'];
+
+		$this->enforceEditLocationPermissions($location);
+		$currentUser = Craft::$app->getUser()->getIdentity();
+
+		
+
+		if ($location->id === null) {
+			$variables['title'] = Craft::t('locations','Create a new location');
 		}
-
-		$this->enforceEditLocationPermissions($locationMOD);
-		$currentUser = Craft::$app->getUser();
+		else {
+			$variables['title'] = $variables['location']->title = $location->title;
+			$variables['brandNewLocation'] = true;
+		}
 
 		$variables['brandNewLocation'] = false;
 		$variables['fullPageForm'] = true;
-		$variables['defaultCountry'] = LocationHelper::country();
+		$variables['defaultCountry'] = CountriesHelper::country();
 
-
-		if (!empty($variables['locationId'])) {
-			if (empty($variables['location'])) {
-				$variables['location'] = getLocationById($variables['locationId']);
-
-				if (!$variables['location']) {
-					throw new HttpException(404);
-				}
-			}
-
-			$variables['title'] = $variables['location']->title;
-		} else {
-			if (empty($variables['location'])) {
-				$variables['location'] = new Location();
-				$variables['brandNewLocation'] = true;
-			}
-
-			$variables['title'] = Craft::t('locations','Create a new location');
-		}
 
 		$variables['crumbs'] = [
-			['label' => Craft::t('locations','Locations'), 'url' => UrlHelper::getUrl('locations')]
+			['label' => Craft::t('locations','Locations'), 'url' => UrlHelper::url('locations')]
 		];
 		// Can't just use the entry's getCpEditUrl() because that might include the locale ID when we don't want it
-		$variables['baseCpEditUrl'] = 'location/{id}-{slug}';
+		$variables['baseCpEditUrl'] = 'locations/{id}-{slug}';
 
-		$variables['canDeleteLocation'] = $variables['location']->id && (
-			($currentUser->can('deleteLocations'))
-		);
+		$variables['canDeleteLocation'] = (
+            get_class($location) === LocationsElement::class &&
+            $location->id !== null &&
+            (
+                ($currentUser->can('locations-deleteLocations'))
+            )
+        );
 
 		// Set the "Continue Editing" URL
 		$variables['continueEditingUrl'] = $variables['baseCpEditUrl'];
+		$variables['saveShortcutRedirect'] = $variables['continueEditingUrl'];
 
-        $variables['countries'] = LocationHelper::countryOptions();
+		$variables['countries'] = CountriesHelper::countryOptions();
+		$variables['settings'] = Craft::$app->getPlugins()->getPlugin('locations')->getSettings();
         
 		$this->getView()->registerAssetBundle(LocationsAsset::class);
-		$this->renderTemplate('locations/_edit', $variables);
+		return $this->renderTemplate('locations/_edit', $variables);
 	}
 
 	/**
@@ -100,74 +115,94 @@ class LocationController extends Controller
 		$location = $this->_getLocationModel();
 		$request = Craft::$app->getRequest();
 
-		// Shared attributes
-		$location->address         		= $request->getPost('address');
-		$location->addressTwo         	= $request->getPost('addressTwo');
-		$location->city        			= $request->getPost('city');
-		$location->state         		= $request->getPost('state');
-		$location->zipCode         		= $request->getPost('zipCode');
-		$location->country				= $request->getPost('country');
-		$location->longitude         	= $request->getPost('longitude');
-		$location->latitude        		= $request->getPost('latitude');
-		$location->website         		= $request->getPost('website');
 
-		$location->getContent()->title = $request->getPost('title', $location->title);
-		$location->setContentFromPost('fields');
+		$this->enforceEditLocationPermissions($location);
+		$currentUser = Craft::$app->getUser()->getIdentity();
+		$continueEditingUrl = $request->getBodyParam('continueEditingUrl');
 
-		// Save it
-		if (!saveLocation($location)) {
+		$this->_populateLocationModel($location);
+
+		if (!Locations::getInstance()->locations->saveLocation($location)) {
 			if ($request->getAcceptsJson()) {
 				return $this->asJson([
-					'errors' => $location->getErrors(),
-				]);
-			} else {
-				Craft::$app->getSession()->setError(Craft::t('locations','Couldn’t save the location'));
-				$this->redirectToPostedUrl($event);
-
-				// Send the event back to the template
-				Craft::$app->getUrlManager()->setRouteParams([
-					'location' => $location,
+					'errors' => $location->getErrors()
 				]);
 			}
-		} else {
-			if ($request->getAcceptsJson()) {
-				$return['success'] = true;
 
-				if (craft()->request->isCpRequest()) {
-					$return['cpEditUrl'] = $entry->getCpEditUrl();
-				}
-				return $this->asJson($return);
-			} else {
-				$this->redirectToPostedUrl($location);
+			Craft::$app->getSession()->setError(Craft::t('locations', 'Couldn’t save location.'));
+			/* Send the event back to the template
+			 * newGroup is applied if event group was changed by select so tabs and fields pull from correct group.
+			 */
+			Craft::$app->getUrlManager()->setRouteParams([
+				'location' => $location
+			]);
+
+			return null;
+		} 
+
+		if ($request->getAcceptsJson()) {
+
+			$return = [];
+			$return['success'] = true;
+			$return['id'] = $location->id;
+			$return['title'] = $location->title;
+
+			if (!$request->getIsConsoleRequest() && $request->isCpRequest()) {
+				$return['cpEditUrl'] = $location->getCpEditUrl();
 			}
+
+			$return['address'] = $location->address;
+			$return['addressTwo'] = $location->addressTwo;
+			$return['city'] = $location->city;
+			$return['state'] = $location->state;
+			$return['zipCode'] = $location->zipCode;
+			$return['country'] = $location->country;
+			$return['longitude'] = $location->longitude;
+			$return['latitude'] = $location->latitude;
+			$return['website'] = $location->website;
+			$return['dateCreated'] = DateTimeHelper::toIso8601($location->dateCreated);
+            $return['dateUpdated'] = DateTimeHelper::toIso8601($location->dateUpdated);
+
+			return $this->asJson($return);
 		}
+
+		Craft::$app->getSession()->setNotice(Craft::t('locations', 'Location saved.'));
+		return $this->redirectToPostedUrl($location);
 	}
 
 	/**
-	 * Fetches or creates an Venti_LocationModel.
+	 * Fetches or creates an Locations_LocationModel.
 	 *
 	 * @throws Exception
-	 * @return Venti_LocationModel
+	 * @return LocationElement
 	 */
 	private function _getLocationModel() {
-		$locationId = Craft::$app->getRequest()->getPost('locationId');
+		$locationId = Craft::$app->getRequest()->getBodyParam('locationId');
+		$siteId = Craft::$app->getRequest()->getBodyParam('siteId');
+
 
 		if ($locationId) {
-			$location = Locations::getLocationById($locationId);
+			$location = LocationElement::find()
+					->id($locationId)
+					->siteId($siteId)
+					->one();
 
 			if (!$location) {
 				throw new Exception(Craft::t('locations','No location exists with the ID “{id}”.', array('id' => $locationId)));
 			}
 		} else {
-			$location = new Location();
+			$location = new LocationElement();
 
+			if ($siteId) {
+				$location->siteId = $siteId;
+			}
 		}
 
 		return $location;
 	}
 
 	/**
-	 * Deletes an event.
+	 * Deletes a location.
 	 */
 	public function actionDeleteLocation() {
 		$this->requirePostRequest();
@@ -193,5 +228,55 @@ class LocationController extends Controller
 				Craft::$app->getSession()->setError(Craft::t('locations','Couldn’t delete location'));
 			}
 		}
+	}
+
+	/**
+	 * Preps entry edit variables.
+	 *
+	 * @param array &$variables
+	 *
+	 * @throws HttpException|Exception
+	 * @return null
+	 */
+	private function _prepEditEntryVariables(&$variables) 
+	{
+		
+        if (empty($variables['location'])) {
+            if (!empty($variables['locationId'])) {
+                //\yii\helpers\VarDumper::dump($variables, 5, true); exit;
+				$variables['location'] = LocationElement::find()
+					->id($variables['locationId'])
+					->one();
+
+                if (!$variables['location']) {
+                    throw new NotFoundHttpException('Location not found');
+                }
+            } else {
+                $variables['location'] = new LocationElement();
+            }
+        }
+	}
+
+	/**
+	 * Populates an LocationModel with post data.
+	 *
+	 * @param LocationModel $location
+	 *
+	 * @return null
+	 */
+	public function _populateLocationModel(LocationElement $location)
+	{
+		$location->address         		= Craft::$app->getRequest()->getBodyParam('address');
+		$location->addressTwo         	= Craft::$app->getRequest()->getBodyParam('addressTwo');
+		$location->city        			= Craft::$app->getRequest()->getBodyParam('city');
+		$location->state         		= Craft::$app->getRequest()->getBodyParam('state');
+		$location->zipCode         		= Craft::$app->getRequest()->getBodyParam('zipCode');
+		$location->country				= Craft::$app->getRequest()->getBodyParam('country');
+		$location->longitude         	= Craft::$app->getRequest()->getBodyParam('longitude');
+		$location->latitude        		= Craft::$app->getRequest()->getBodyParam('latitude');
+		$location->website         		= Craft::$app->getRequest()->getBodyParam('website');
+		$location->title 				= Craft::$app->getRequest()->getBodyParam('title');
+		$location->slug 				= Craft::$app->getRequest()->getBodyParam('slug');
+		
 	}
 }

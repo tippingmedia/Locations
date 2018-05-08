@@ -12,10 +12,10 @@ namespace tippingmedia\locations\fields;
 
 use tippingmedia\locations\Locations;
 use tippingmedia\locations\elements\Location as LocationElement;
-use tippingmedia\locations\assetbundles\locationfield\LocationFieldAsset;
 
 use Craft;
 use craft\base\ElementInterface;
+use craft\fields\BaseRelationField;
 use craft\base\Field;
 use craft\helpers\Db;
 use yii\db\Schema;
@@ -60,6 +60,6 @@ class Location extends BaseRelationField
      */
     public static function defaultSelectionLabel(): string
     {
-        return Craft::t('app', 'Add an entry');
+        return Craft::t('app', 'Add a location');
     }
 }

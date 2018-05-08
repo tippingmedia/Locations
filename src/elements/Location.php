@@ -12,12 +12,19 @@ namespace tippingmedia\locations\elements;
 
 use tippingmedia\locations\elements\db\LocationQuery;
 use tippingmedia\locations\services\Locations;
-use tippingmedia\locations\models\Location;
+use tippingmedia\locations\models\Location as LocationModel;
+use tippingmedia\locations\records\Location as LocationRecord;
+use tippingmedia\locations\assetbundles\locations\LocationsAsset;
+use tippingmedia\locations\helpers\CountriesHelper;
+use tippingmedia\locations\elements\actions\Edit;
+use tippingmedia\locations\elements\actions\Delete;
+use tippingmedia\locations\elements\actions\View;
 
 use Craft;
 use craft\base\Element;
 use craft\elements\db\ElementQuery;
 use craft\elements\db\ElementQueryInterface;
+use craft\helpers\UrlHelper;
 
 /**
  * Location Element
@@ -76,16 +83,13 @@ class Location extends Element
      */
     public $address;
     public $addressTwo;
+    public $city;
     public $state;
     public $zipCode;
     public $country;
     public $longitude;
     public $latitude;
-    public $town;
     public $website;
-    public $region;
-    public $province;
-    public $postalCode
 
     // Static Methods
     // =========================================================================
@@ -95,9 +99,17 @@ class Location extends Element
      *
      * @return string The display name of this class.
      */
-    public static function displayName(): string
+    public static function getName(): string
     {
         return Craft::t('locations', 'Location');
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public static function refHandle()
+    {
+        return 'location';
     }
 
     /**
@@ -138,70 +150,30 @@ class Location extends Element
     }
 
     /**
-     * Creates an [[ElementQueryInterface]] instance for query purpose.
-     *
-     * The returned [[ElementQueryInterface]] instance can be further customized by calling
-     * methods defined in [[ElementQueryInterface]] before `one()` or `all()` is called to return
-     * populated [[ElementInterface]] instances. For example,
-     *
-     * ```php
-     * // Find the entry whose ID is 5
-     * $entry = Entry::find()->id(5)->one();
-     *
-     * // Find all assets and order them by their filename:
-     * $assets = Asset::find()
-     *     ->orderBy('filename')
-     *     ->all();
-     * ```
-     *
-     * If you want to define custom criteria parameters for your elements, you can do so by overriding
-     * this method and returning a custom query class. For example,
-     *
-     * ```php
-     * class Product extends Element
-     * {
-     *     public static function find()
-     *     {
-     *         // use ProductQuery instead of the default ElementQuery
-     *         return new ProductQuery(get_called_class());
-     *     }
-     * }
-     * ```
-     *
-     * You can also set default criteria parameters on the ElementQuery if you don’t have a need for
-     * a custom query class. For example,
-     *
-     * ```php
-     * class Customer extends ActiveRecord
-     * {
-     *     public static function find()
-     *     {
-     *         return parent::find()->limit(50);
-     *     }
-     * }
-     * ```
      *
      * @return ElementQueryInterface The newly created [[ElementQueryInterface]] instance.
      */
     public static function find(): ElementQueryInterface
     {
-        return new LocationQuery(get_called_class());
+        return new LocationQuery(static::class);
     }
 
     /**
-     * Defines the sources that elements of this type may belong to.
-     *
-     * @param string|null $context The context ('index' or 'modal').
-     *
-     * @return array The sources.
-     * @see sources()
+     * @inheritdoc
      */
     protected static function defineSources(string $context = null): array
     {
-        $sources = [];
-
+        $sources = [
+            [
+                'key' => '*',
+                'label' => Craft::t('locations', 'All locations'),
+                'criteria' => []
+            ]
+        ];
         return $sources;
     }
+
+
 
     // Public Methods
     // =========================================================================
@@ -219,7 +191,7 @@ class Location extends Element
     public function rules()
     {
         return [
-            [['address','addressTwo','city','state','town','zipCode','longitude','latitude','website','region','provice','postalCode'], 'string'],
+            [['address','addressTwo','city','state','zipCode','longitude','latitude','website'], 'string'],
         ];
     }
 
@@ -233,34 +205,10 @@ class Location extends Element
         return true;
     }
 
-    /**
-     * Returns the field layout used by this element.
-     *
-     * @return FieldLayout|null
-     */
-    public function getFieldLayout()
-    {
-        $tagGroup = $this->getGroup();
 
-        if ($tagGroup) {
-            return $tagGroup->getFieldLayout();
-        }
 
-        return null;
-    }
 
-    public function getGroup()
-    {
-        if ($this->groupId === null) {
-            throw new InvalidConfigException('Tag is missing its group ID');
-        }
 
-        if (($group = Craft::$app->getTags()->getTagGroupById($this->groupId)) === null) {
-            throw new InvalidConfigException('Invalid tag group ID: '.$this->groupId);
-        }
-
-        return $group;
-    }
 
     // Indexes, etc.
     // -------------------------------------------------------------------------
@@ -272,6 +220,17 @@ class Location extends Element
      */
     public function getEditorHtml(): string
     {
+        $namespacedId = Craft::$app->getView()->getNamespace();
+
+        Craft::$app->getView()->registerAssetBundle(LocationsAsset::class);
+		#-- Start/End Dates
+		$html = Craft::$app->getView()->renderTemplate('locations/_editor', [
+            'location' 			=> $this,
+            'countries'         => CountriesHelper::countryOptions(),
+            'defaultCountry'    => CountriesHelper::country(),
+            'settings'          => Craft::$app->getPlugins()->getPlugin('locations')->getSettings(),
+			'namespacedId' 		=> $namespacedId
+		]);
 
         $html .= parent::getEditorHtml();
 
@@ -302,6 +261,31 @@ class Location extends Element
      */
     public function afterSave(bool $isNew)
     {
+        if (!$isNew) {
+			$record = LocationRecord::findOne($this->id);
+
+            if (!$record) {
+                throw new Exception('Invalid Location ID: '.$this->id);
+            }
+        } else {
+            $record = new LocationRecord();
+            $record->id = $this->id;
+		}
+		
+		$record->siteId = $this->siteId;
+        $record->address = $this->address;
+        $record->addressTwo = $this->addressTwo;
+        $record->city = $this->city;
+		$record->state = $this->state;
+        $record->zipCode = $this->zipCode;
+        $record->country = $this->country;
+        $record->longitude = $this->longitude;
+		$record->latitude = $this->latitude;
+		$record->website = $this->website;
+
+        $record->save(false);
+        
+        parent::afterSave($isNew);
     }
 
     /**
@@ -330,15 +314,11 @@ class Location extends Element
     {
         return [
             'title' => Craft::t('app', 'Title'),
-            'uri' => Craft::t('app', 'URI'),
             'state' => Craft::t('locations', 'State'),
             'city' => Craft::t('locations', 'City'),
             'town' => Craft::t('locations', 'Town'),
             'zipCode' => Craft::t('locations', 'ZipCode'),
             'country' => Craft::t('locations', 'Country'),
-            'region' => Craft::t('locations', 'Region'),
-            'province' => Craft::t('locations', 'Province'),
-            'postalCode' => Craft::t('locations', 'PostalCode'),
             'elements.dateCreated' => Craft::t('app', 'Date Created'),
             'elements.dateUpdated' => Craft::t('app', 'Date Updated'),
         ];
@@ -350,19 +330,58 @@ class Location extends Element
 	protected static function defineTableAttributes(): array
 	{
 		$attributes = [
-			'title'     => ['label' => Craft::t('locations','Title')],
+            'uri'     => ['label' => Craft::t('locations','URI')],
+            'title'     => ['label' => Craft::t('locations','Title')],
             'address' 	=> ['label' => Craft::t('locations','Address')],
             'addressTwo' => ['label' => Craft::t('locations','AddressTwo')],
-			'state'   	=> ['label' => Craft::t('locations','State')],
-			'zipCode'	=> ['label' => Craft::t('locations','Zip Code')],
+            'city'   	=> ['label' => Craft::t('locations','City/Town')],
+			'state'   	=> ['label' => Craft::t('locations','State/Province/Region')],
+			'zipCode'	=> ['label' => Craft::t('locations','Zip Code/Postal Code')],
             'country'   => ['label' => Craft::t('locations','Country')],
-            'town'   => ['label' => Craft::t('locations','Town')],
-            'region'   => ['label' => Craft::t('locations','Region')],
-            'province'   => ['label' => Craft::t('locations','Province')],
-            'postalCode'   => ['label' => Craft::t('locations','PostalCode')],
 		];
 
 		return $attributes;
+    }
+
+    protected function tableAttributeHtml(string $attribute): string
+	{
+		// switch ($attribute)
+		// {
+		// 	case 'country':
+		// 	{
+		// 		if ($this->country == "US")
+		// 		{
+        //             return '<div style="font-size:1.7rem">🇺🇸</div>';
+		// 		}
+		// 		else
+		// 		{
+		// 			return $this->country;
+		// 		}
+        //     }
+		// }
+		return parent::tableAttributeHtml($attribute);
+	}
+    
+
+    /**
+     * Returns the reference string to this element.
+     *
+     * @return string|null
+     */
+    public function getRef()
+    {
+        return 'locations/'.$this->id."-".$this->slug;
+    }
+    
+    /**
+     * @inheritdoc
+     */
+    public function getCpEditUrl()
+    {
+        // The slug *might* not be set if this is a Draft and they've deleted it for whatever reason
+        $url = UrlHelper::cpUrl('locations/'.$this->id.($this->slug ? '-'.$this->slug : ''));
+
+        return $url;
 	}
 
 }

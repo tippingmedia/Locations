@@ -20,7 +20,7 @@
         "homepage": "https://tippingmedia.com"
     }],
     "require": {
-        "craftcms/cms": "^3.0.5"
+        "craftcms/cms": "~3.0.5"
     },
     "autoload": {
         "psr-4": {
@@ -31,7 +31,7 @@
         "name": "Locations",
         "handle": "locations",
         "hasCpSettings": true,
-        "hasCpSection": false,
+        "hasCpSection": true,
         "changelogUrl": "https://raw.githubusercontent.com/tippingmedia/locations/master/releases.json",
         "components": {
             "locations": "tippingmedia\\locations\\services\\Locations"

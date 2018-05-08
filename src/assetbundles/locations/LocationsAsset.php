@@ -60,6 +60,12 @@ class LocationsAsset extends AssetBundle
             'css/Locations.css',
         ];
 
+        $settings = Craft::$app->getPlugins()->getPlugin('locations')->getSettings();
+        
+        if(isset($settings['googleMapsApiKey'])) {
+            $googleMapsApiKey = $settings['googleMapsApiKey'];
+            $this->js[] = 'https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&libraries=places&key='. $googleMapsApiKey;
+        }
         parent::init();
     }
 }

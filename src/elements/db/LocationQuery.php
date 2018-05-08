@@ -30,10 +30,6 @@ class LocationQuery extends ElementQuery
     public $longitude;
     public $latitude;
     public $website;
-    public $town;
-    public $region;
-    public $province;
-    public $postalCode;
 
 
     public function __construct($elementType, array $config = [])
@@ -192,62 +188,7 @@ class LocationQuery extends ElementQuery
         return $this;
     }
 
-    /**
-     * Sets the [[town]] property.
-     *
-     * @param $string|null $value The property value
-     *
-     * @return static self reference
-     */
-    public function town($value)
-    {
-        $this->town = $value;
-
-        return $this;
-    }
-
-    /**
-     * Sets the [[region]] property.
-     *
-     * @param $string|null $value The property value
-     *
-     * @return static self reference
-     */
-    public function region($value)
-    {
-        $this->region = $value;
-
-        return $this;
-    }
     
-
-        /**
-     * Sets the [[province]] property.
-     *
-     * @param $string|null $value The property value
-     *
-     * @return static self reference
-     */
-    public function province($value)
-    {
-        $this->province = $value;
-
-        return $this;
-    }
-
-     /**
-     * Sets the [[postalCode]] property.
-     *
-     * @param $string|null $value The property value
-     *
-     * @return static self reference
-     */
-    public function postalCode($value)
-    {
-        $this->postalCode = $value;
-
-        return $this;
-    }
 
 
 
@@ -258,77 +199,56 @@ class LocationQuery extends ElementQuery
     {
 
 
-        $this->joinElementTable('locations_locations loc');
+        $this->joinElementTable('locations_entries');
 
         $this->query->select([
-            'loc.address',
-            'loc.addressTwo',
-            'loc.city',
-            'loc.state',
-            'loc.zipCode',
-            'loc.country',
-            'loc.longitude',
-            'loc.latitude',
-            'loc.website',
-            'loc.town',
-            'loc.region',
-            'loc.province',
-            'loc.postalCode'
+            'locations_entries.address',
+            'locations_entries.addressTwo',
+            'locations_entries.city',
+            'locations_entries.state',
+            'locations_entries.zipCode',
+            'locations_entries.country',
+            'locations_entries.longitude',
+            'locations_entries.latitude',
+            'locations_entries.website'
         ]);
 
 
         if ($this->address) {
-            $this->subQuery->andWhere(Db::parseParam('loc.address', $this->address));
+            $this->subQuery->andWhere(Db::parseParam('locations_entries.address', $this->address));
         }
 
         if ($this->addressTwo) {
-            $this->subQuery->andWhere(Db::parseDateParam('loc.addressTwo', $this->addressTwo));
+            $this->subQuery->andWhere(Db::parseDateParam('locations_entries.addressTwo', $this->addressTwo));
         }
 
         if ($this->city) {
-            $this->subQuery->andWhere(Db::parseDateParam('loc.city', $this->city));
+            $this->subQuery->andWhere(Db::parseDateParam('locations_entries.city', $this->city));
         }
 
         if ($this->state) {
-            $this->subQuery->andWhere(Db::parseParam('loc.state', $this->state));
+            $this->subQuery->andWhere(Db::parseParam('locations_entries.state', $this->state));
         }
 
         if ($this->zipCode) {
-            $this->subQuery->andWhere(Db::parseParam('loc.zipCode', $this->zipCode));
+            $this->subQuery->andWhere(Db::parseParam('locations_entries.zipCode', $this->zipCode));
         }
 
         if ($this->country) {
-            $this->subQuery->andWhere(Db::parseParam('loc.country', $this->country));
+            $this->subQuery->andWhere(Db::parseParam('locations_entries.country', $this->country));
         }
 
         if ($this->longitude) {
-            $this->subQuery->andWhere(Db::parseParam('loc.longitude', $this->longitude));
+            $this->subQuery->andWhere(Db::parseParam('locations_entries.longitude', $this->longitude));
         }
 
         if ($this->latitude) {
-            $this->subQuery->andWhere(Db::parseParam('loc.latitude', $this->latitude));
+            $this->subQuery->andWhere(Db::parseParam('locations_entries.latitude', $this->latitude));
         }
 
         if ($this->website) {
-            $this->subQuery->andWhere(Db::parseParam('loc.website', $this->website));
+            $this->subQuery->andWhere(Db::parseParam('locations_entries.website', $this->website));
         }
-
-        if ($this->town) {
-            $this->subQuery->andWhere(Db::parseParam('loc.town', $this->town));
-        }
-
-        if ($this->region) {
-            $this->subQuery->andWhere(Db::parseParam('loc.region', $this->region));
-        }
-
-        if ($this->province) {
-            $this->subQuery->andWhere(Db::parseParam('loc.province', $this->province));
-        }
-
-        if ($this->postalCode) {
-            $this->subQuery->andWhere(Db::parseParam('loc.postalCode', $this->postalCode));
-        }
-
 
         //$this->_applyRefParam();
 

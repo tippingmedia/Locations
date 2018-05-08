@@ -15,6 +15,7 @@ use tippingmedia\locations\variables\LocationsVariable;
 use tippingmedia\locations\models\Settings;
 use tippingmedia\locations\elements\Location as LocationElement;
 use tippingmedia\locations\fields\Location as LocationField;
+use tippingmedia\locations\helpers\CountriesHelper;
 
 use Craft;
 use craft\base\Plugin;
@@ -23,9 +24,11 @@ use craft\events\PluginEvent;
 use craft\web\UrlManager;
 use craft\services\Elements;
 use craft\services\Fields;
+use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
+
 
 use yii\base\Event;
 
@@ -52,8 +55,11 @@ class Locations extends Plugin
     // Static Properties
     // =========================================================================
 
-    const TRANSLATION_HANDLE = 'locations';
-    const PERMISSION_LOCATIONS = 'locations-manageLocations';
+    const TRANSLATION_HANDLE            = 'locations';
+    const PERMISSION_CREATE_LOCATIONS   = 'locations-createLocations';
+    const PERMISSION_EDIT_LOCATIONS     = 'locations-editLocations';
+    const PERMISSION_DELETE_LOCATIONS   = 'locations-deleteLocations';
+    const PERMISSION_SETTINGS           = 'locations-settings';
 
     /**
      * Static property that is an instance of this plugin class so that it can be accessed via
@@ -111,9 +117,9 @@ class Locations extends Plugin
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
             function (RegisterUrlRulesEvent $event) {
                 // Locations
-                $event->rules['locations'] = 'locations/locationIndex';
-                $event->rules['locations/new'] = 'locations/editLocation';
-                $event->rules['location/<locationId:\d+>(?:-{slug})'] = 'locations/editLocation';
+                $event->rules['locations'] = 'locations/location/location-index';
+                $event->rules['locations/new'] = 'locations/location/edit-location';
+                $event->rules['locations/<locationId:\d+><slug:(?:-[^\/]*)?>'] = 'locations/location/edit-location';
             }
         );
 
@@ -146,16 +152,31 @@ class Locations extends Plugin
             }
         );
 
-        // Do something after we're installed
-        Event::on(
-            Plugins::class,
-            Plugins::EVENT_AFTER_INSTALL_PLUGIN,
-            function (PluginEvent $event) {
-                if ($event->plugin === $this) {
-                    // We were just installed
-                }
+        if (Craft::$app->getEdition() >= Craft::Pro) {
+            Event::on( 
+                UserPermissions::class, 
+                UserPermissions::EVENT_REGISTER_PERMISSIONS, 
+                function (RegisterUserPermissionsEvent $event) {
+                    $event->permissions[$this->name] = [
+                        self::PERMISSION_SETTINGS  => ['label' => self::t('Locations Settings')],
+                        self::PERMISSION_CREATE_LOCATIONS  => ['label' => self::t('Create Locations')],
+                        self::PERMISSION_EDIT_LOCATIONS  => ['label' => self::t('Edit Locations')],
+                        self::PERMISSION_DELETE_LOCATIONS  => ['label' => self::t('Delete Locations')]
+                    ];
+                });
             }
-        );
+
+
+        // Do something after we're installed
+        // Event::on(
+        //     Plugins::class,
+        //     Plugins::EVENT_AFTER_INSTALL_PLUGIN,
+        //     function (PluginEvent $event) {
+        //         if ($event->plugin === $this) {
+        //             // We were just installed
+        //         }
+        //     }
+        // );
 /**
  * Logging in Craft involves using one of the following methods:
  *
@@ -223,8 +244,9 @@ class Locations extends Plugin
     protected function settingsHtml(): string
     {
         return Craft::$app->view->renderTemplate(
-            'settings',
+            'locations/settings',
             [
+                'countries' => CountriesHelper::countryOptions(),
                 'settings' => $this->getSettings()
             ]
         );

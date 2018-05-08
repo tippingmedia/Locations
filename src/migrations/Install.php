@@ -97,12 +97,12 @@ class Install extends Migration
     {
         $tablesCreated = false;
 
-    // locations_location table
-        $tableSchema = Craft::$app->db->schema->getTableSchema('{{%locations_location}}');
+    // locations_entries table
+        $tableSchema = Craft::$app->db->schema->getTableSchema('{{%locations_entries}}');
         if ($tableSchema === null) {
             $tablesCreated = true;
             $this->createTable(
-                '{{%locations_location}}',
+                '{{%locations_entries}}',
                 [
                     'id' => $this->primaryKey(),
                     'dateCreated' => $this->dateTime()->notNull(),
@@ -110,13 +110,23 @@ class Install extends Migration
                     'uid' => $this->uid(),
                 // Custom columns in the table
                     'siteId' => $this->integer()->notNull(),
-                    'some_field' => $this->string(255)->notNull()->defaultValue(''),
+                    'address' => $this->text(),
+                    'addressTwo' => $this->text(),
+                    'city' => $this->string(),
+                    'state' => $this->string(50),
+                    'zipCode' => $this->string(25),
+                    'country' => $this->string(),
+                    'longitude' => $this->string(),
+                    'latitude' => $this->string(),
+                    'website' => $this->text()
+                    //'some_field' => $this->string(255)->notNull()->defaultValue(''),
                 ]
             );
         }
 
         return $tablesCreated;
     }
+
 
     /**
      * Creates the indexes needed for the Records used by the plugin
@@ -125,15 +135,15 @@ class Install extends Migration
      */
     protected function createIndexes()
     {
-    // locations_location table
+    // locations_entries table
         $this->createIndex(
             $this->db->getIndexName(
-                '{{%locations_location}}',
-                'some_field',
+                '{{%locations_entries}}',
+                'id',
                 true
             ),
-            '{{%locations_location}}',
-            'some_field',
+            '{{%locations_entries}}',
+            'id',
             true
         );
         // Additional commands depending on the db driver
@@ -152,10 +162,10 @@ class Install extends Migration
      */
     protected function addForeignKeys()
     {
-    // locations_location table
+    // locations_entries table
         $this->addForeignKey(
-            $this->db->getForeignKeyName('{{%locations_location}}', 'siteId'),
-            '{{%locations_location}}',
+            $this->db->getForeignKeyName('{{%locations_entries}}', 'siteId'),
+            '{{%locations_entries}}',
             'siteId',
             '{{%sites}}',
             'id',
@@ -180,7 +190,7 @@ class Install extends Migration
      */
     protected function removeTables()
     {
-    // locations_location table
-        $this->dropTableIfExists('{{%locations_location}}');
+    // locations_entries table
+        $this->dropTableIfExists('{{%locations_entries}}');
     }
 }

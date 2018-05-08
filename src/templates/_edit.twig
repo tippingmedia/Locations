@@ -1,0 +1,115 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+{% import "locations/_fields" as fields %}
+
+{# {% includeCssResource "venti/css/venti.css" %} #}
+{% if settings.googleMapsApiKey is not empty %}
+    {% js "https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&libraries=places&key=" ~ settings.googleMapsApiKey %}
+{% endif %}
+
+
+{% set canPublish = currentUser.can('locations-editLocations') %}
+{% set canCreate = currentUser.can('locations-createLocations') %}
+
+{% set canSave = false %}
+
+{% if location.id %}
+    {% if canPublish %}
+        {% set canSave = true %}
+    {% endif %}
+{% elseif not location.id %}
+    {% if canCreate %}
+        {% set canSave = true %}
+    {% endif %}
+{% endif %}
+
+
+{% block actionButton %}
+    {% if canSave %}
+    	<input type="hidden" name="action" value="locations/location/save-location">
+    	{{ redirectInput('locations/') }}
+
+    	<div class="btngroup">
+    		<input type="submit" class="btn submit" value="{{ 'Save'|t('locations') }}">
+
+    		<div class="btn submit menubtn"></div>
+    		<div class="menu">
+    			<ul>
+    				<li><a class="formsubmit" data-redirect="{{ continueEditingUrl|hash }}">{{ "Save and continue editing"|t('locations') }}</a></li>
+    				<li><a class="formsubmit" data-redirect="{{ 'locations/new'|hash }}">{{ "Save and add another"|t('locations') }}</a></li>
+    			</ul>
+    		</div>
+    	</div>
+    {% endif %}
+{% endblock %}
+{% block content %}
+    <input type="hidden" name="locationId" value="{{ location.id }}">
+
+    {{ forms.textField({
+        label: 		"Title"|t,
+        id: 		'title',
+        name: 		'title',
+        value: 		location.title,
+        errors: 	location.getErrors('title'),
+        first: 		true,
+        autofocus: 	true,
+        required: 	true
+    }) }}
+    <hr/>
+    {% if settings.googleMapsApiKey is not empty %}
+        {{ fields.textField("findaddr",'',{placeholder:"Type address you want to find here."|t, size: 75, class:"find-address-input"},{label:"Find Address"|t,}) }}
+    {% endif %}
+    {{ fields.textField("address",location.address,{ placeholder:"Address line 1"|t, class:"loc-address-input"},{label:"Address"|t,instructions:"Street address, P.O. box, company name, c/o"|t}) }}
+    {{ fields.textField("addressTwo",location.addressTwo,{ placeholder:"Address line 2"|t, class:"loc-address-two-input"},{label:"Address 2"|t,instructions:"Apartment, suite , unit, building, floor, etc."|t}) }}
+    {{ fields.textField("city",location.city,{placeholder:"City/Town"|t, size: 50, class:"loc-city-input"},{label:"City/Town"|t,}) }}
+    {{ fields.textField("state",location.state,{placeholder:"State/Province/Region"|t, size: 50, class:"loc-state-input"},{label:"State/Province/Region"|t,}) }}
+    {{ fields.textField("zipCode",location.zipCode,{placeholder:"Zip Code/Postal Code"|t, size: 50, class:"loc-zip-input"},{label:"Zip Code/Postal Code"|t,}) }}
+    {{ fields.selectField("country",location.country,{options:countries, class:"loc-countries-input", default:defaultCountry },{label:"Country"|t}) }}
+    <hr/>
+    {% if settings.googleMapsApiKey is not empty %}
+        <h3>{{ "Map Coordinates"|t }}</h3>
+        {{ fields.textField("latitude",location.latitude,{class:"loc-lat-input", size: 50},{label:"Latitude"|t}) }}
+        {{ fields.textField("longitude",location.longitude,{class:"loc-lng-input", size: 50},{label:"Longitude"|t}) }}
+        <hr/>
+    {% endif %}
+    {{ fields.textField("website",location.website,{placeholder:"http://…"|t, size: 50},{label:"Website"|t,}) }}
+{% endblock %}
+
+{% block details %}
+    {% if canPublish %}
+        <div id="settings" class="meta">
+            {{ forms.textField({
+                label: "Slug"|t,
+                id: 'slug',
+                name: 'slug',
+                value: location.slug,
+                placeholder: "Enter slug"|t,
+                errors: location.getErrors('slug')|merge(location.getErrors('uri'))
+            }) }}
+
+            {% if canDeleteLocation %}
+                <div class="text--right">
+                    <input type="button" class="btn formsubmit" value="{{ 'Delete'|t('locations') }}" data-action="{{ 'locations/location/deleteLocation'|hash }}"
+                        data-confirm="{{ 'Are you sure you want to delete this location?'|t('locations') }}"
+                        data-redirect="{{ 'locations/locations'|hash }}">
+                </div>
+            {% endif %}
+
+        </div>
+    {% endif %}
+    {% if settings.googleMapsApiKey is not empty %}
+        <div class="meta">
+            <div class='map_container'></div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% if not location.slug %}
+	{% js "window.slugGenerator = new Craft.SlugGenerator('#title', '#slug');" %}
+{% endif %}
+
+{% js %}
+    new Locations({
+        id: "location",
+    });
+{% endjs %}

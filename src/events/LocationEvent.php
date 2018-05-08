@@ -5,7 +5,7 @@
  * @license   https://tippingmedia.com/license
  */
 
-namespace craft\events;
+namespace tippingmedia\locations\events;
 
 use yii\base\Event;
 

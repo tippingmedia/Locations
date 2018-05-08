@@ -1,7 +1,7 @@
 <?php
-namespace tippingmedia\location\helpers;
+namespace tippingmedia\locations\helpers;
 
-use tippingmedia\location\Location;
+use tippingmedia\locations\Locations;
 
 use Craft;
 use craft\helpers\FileHelper;
@@ -16,7 +16,7 @@ use craft\helpers\FileHelper;
  * @since     2.0
  */
 
-class LocationHelper
+class CountriesHelper
 {
     public static function countries()
     {
@@ -30,7 +30,7 @@ class LocationHelper
 
     public static function countryOptions()
     {
-        $countries = LocationHelper::countries();
+        $countries = static::countries();
         $options = array();
         foreach ($countries as $key => $value)
         {
@@ -41,7 +41,7 @@ class LocationHelper
 
     public static function country()
     {
-        $settings = craft()->plugins->getPlugin('location')->getSettings();
+        $settings = Craft::$app->getPlugins()->getPlugin('locations')->getSettings();
         return $settings['country'];
     }
 }
